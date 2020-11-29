@@ -26,14 +26,11 @@ def start(update: Update, context):
 
 
 def handler(update: Update, context: CallbackContext):
-    # context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
     
     # Dont handle events in past
     if start_date > update.message.date:
         return 
 
-    # if(update.message.chat_id != -250339505):
-    #     return
     if not hasattr(context.bot, 'fsm'):
         context.bot.fsm = states.FSM(states.WaitCommand)
     

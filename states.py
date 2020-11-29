@@ -1,8 +1,11 @@
 import time
 import math
+import datetime
 from abc import ABC
 import logging
 import random
+import re
+from os import getenv
 
 from telegram.ext.callbackcontext import CallbackContext
 from telegram.update import Update
@@ -27,19 +30,34 @@ class Start(BaseState):
 
 class WaitCommand(BaseState):
     def update(self, update: Update, context: CallbackContext):
-        if update.message.text.lower() == 'заряжай':
+        if not hasattr(self, 'r'):
+            self.r = re.compile(r'^заряжа+й!*', re.IGNORECASE)
+
+        if self.r.match(update.message.text.lower()):
             self.fsm.transition(LoadWeapon)
             self.fsm.get_state().update(update, context)
 
 
 class SelectGunner(BaseState):
+    def __init__(self, fsm, context):
+        super().__init__(fsm, context)
+        self.started_at = datetime.datetime.now().timestamp()
+        self.timeout = int(getenv('SELECT_GUNNER_TIMEOUT'))
+
     def update(self, update: Update, context: CallbackContext):
+        current_date = datetime.datetime.now().timestamp()
+        if current_date - self.started_at >= self.timeout:
+            context.bot.send_message(chat_id=update.effective_chat.id, text=f'{self.context.initiator_name} не смог! Орудие разряжено!')
+            self.fsm.transition(WaitCommand)
+
         if update.message.from_user.id != self.context.initiator_id:
             return
         if update.message.reply_to_message is None:
             return
 
         gunner_name = update.message.reply_to_message.from_user.name
+        self.commander_name = update.message.from_user.name
+        self.comander_id = update.message.from_user.id
         selected_gunner_message = f'{update.message.from_user.name} Выбрал в качестве наводчика {gunner_name}! Для того, чтобы выстрелить наводчик должен ответить на любое сообщение цели фразой "Огонь!"'
         context.bot.send_message(chat_id=update.effective_chat.id, text=selected_gunner_message,
                                  reply_to_message_id=update.message.message_id)
@@ -48,16 +66,31 @@ class SelectGunner(BaseState):
 
 
 class ReadyToFire(BaseState):
-    def get_random_phrase(self, victim_name):
+    def __init__(self, fsm, context):
+        super().__init__(fsm, context)
+        self.started_at = datetime.datetime.now().timestamp()
+        self.timeout = int(getenv('SELECT_VICTIM_TIMEOUT'))
+
+    def get_random_phrase(self, victim_name, custom_message=None):
         phrases = (
             '{victim_name}, проследуйте пожалуйста нахуй ☺️',
             'Со звуком "Птиууу!" {victim_name} удалился в сторону хуя 🙈',
             '{victim_name}, ты слышал звук "Чпоньк"? Оглянись, ты присел на бутылку 🍼',
             'Иди нахуй, {victim_name}!',
         )
-        return phrases[random.randint(0, len(phrases)-1)].format(victim_name=victim_name)
+        if custom_message is not None:
+            return custom_message.format(victim_name=victim_name)
+        else:
+            return phrases[random.randint(0, len(phrases)-1)].format(victim_name=victim_name)
 
     def update(self, update: Update, context: CallbackContext):
+        current_date = datetime.datetime.now().timestamp()
+        if current_date - self.started_at >= self.timeout:
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text=self.get_random_phrase(self.context.gunner_name, '{victim_name} пошел нахуй...'))
+            self.fsm.transition(WaitCommand)
+            return
+
         if update.message.from_user.id != self.context.gunner_id:
             return
 
@@ -78,19 +111,19 @@ class ReadyToFire(BaseState):
 
 
 class SelectGunnerCtx:
-    def __init__(self, init_msg_id, initiator_id):
+    def __init__(self, init_msg_id, initiator_name, initiator_id):
         self.init_msg_id = init_msg_id
+        self.initiator_name = initiator_name
         self.initiator_id = initiator_id
 
-
 class FireCtx:
-    def __init__(self, gunner_name, gunner_id):
+    def __init__(self, gunner_name, gunner_id, custom_message=None):
         self.gunner_name = gunner_name
         self.gunner_id = gunner_id
-
+        self.custom_message = custom_message
 
 class LoadWeapon(BaseState):
-    def render_bar(self, bar_size, capacity, charge, charged_cell='█', empty_cell='▒'):
+    def render_bar(self, bar_size, capacity, charge, charged_cell='▣', empty_cell='▢'):
         charge_value = math.ceil((bar_size/capacity)*charge)
         charged_bar = charged_cell*int(charge_value)
         uncharged = empty_cell*(bar_size-len(charged_bar))
@@ -98,12 +131,15 @@ class LoadWeapon(BaseState):
 
     def update(self, update: Update, context: CallbackContext):
         message = 'Посылатель заряжается...'
-        if update.message.text.lower() != 'заряжай':
+        if not hasattr(self, 'r'):
+            self.r = re.compile(r'^заряжа+й!*', re.IGNORECASE)
+
+        if not self.r.match(update.message.text.lower()):
             return
         initial_message_id = update.message.message_id
 
         capacity = 15
-        charge_time = 30
+        charge_time = int(getenv('WEAPON_CHARGE_TIME'))
         wait_time = charge_time/capacity
         bar_size = 15
         last_msg = None
@@ -130,7 +166,7 @@ class LoadWeapon(BaseState):
                                  reply_to_message_id=initial_message_id)
 
         self.fsm.transition(SelectGunner, SelectGunnerCtx(
-            initial_message_id, update.message.from_user.id))
+            initial_message_id, update.message.from_user.name,update.message.from_user.id))
 
 
 class FSM:
@@ -145,7 +181,7 @@ class FSM:
             'to': Start,
         },
         WaitCommand: {
-            'from': (Start, ReadyToFire, LoadWeapon),
+            'from': (Start, ReadyToFire, LoadWeapon, SelectGunner),
             'to': WaitCommand,
         },
         LoadWeapon: {
