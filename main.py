@@ -1,11 +1,10 @@
 import logging
-import time
 from datetime import datetime
-import pytz
 from os import getenv
-from dotenv import load_dotenv
 
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+import pytz
+from dotenv import load_dotenv
+from telegram.ext import Updater, MessageHandler, Filters
 from telegram.ext.callbackcontext import CallbackContext
 from telegram.update import Update
 
