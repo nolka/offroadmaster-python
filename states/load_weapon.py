@@ -9,7 +9,7 @@ from telegram.update import Update
 from states.base_state import BaseState
 from states.contexts import SelectGunnerCtx
 
-from transitions import SelectGunnerTransition
+from transitions import SELECT_GUNNER
 
 
 class LoadWeapon(BaseState):
@@ -57,5 +57,5 @@ class LoadWeapon(BaseState):
                                  text='Посылатель полностью заряжен! Требуется наводчик! Для этого ответь на любое его сообщение!',
                                  reply_to_message_id=initial_message_id)
 
-        self.fsm.transition(SelectGunnerTransition, SelectGunnerCtx(
+        self.fsm.transition(SELECT_GUNNER, SelectGunnerCtx(
             initial_message_id, update.message.from_user.name, update.message.from_user.id))

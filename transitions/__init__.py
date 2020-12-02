@@ -6,25 +6,4 @@ class TransitionDef:
         self.dest = dest
 
 
-class BaseTransition:
-    pass
-
-
-class StartTransition(BaseTransition):
-    pass
-
-
-class WaitCommandTransition:
-    pass
-
-
-class LoadWeaponTransition:
-    pass
-
-
-class SelectGunnerTransition:
-    pass
-
-
-class ReadyToFireTransition(BaseTransition):
-    pass
+START, WAIT_COMMAND, LOAD_WEAPON, SELECT_GUNNER, FIRE = range(5)

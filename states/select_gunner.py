@@ -6,7 +6,7 @@ from telegram.update import Update
 
 from states.base_state import BaseState
 from states.contexts import FireCtx
-from transitions import ReadyToFireTransition, WaitCommandTransition
+from transitions import FIRE, WAIT_COMMAND
 
 
 class SelectGunner(BaseState):
@@ -19,7 +19,7 @@ class SelectGunner(BaseState):
         current_date = datetime.datetime.now().timestamp()
         if current_date - self.started_at >= self.timeout:
             context.bot.send_message(chat_id=update.effective_chat.id, text=f'{self.context.initiator_name} не смог! Орудие разряжено!')
-            self.fsm.transition(WaitCommandTransition)
+            self.fsm.transition(WAIT_COMMAND)
 
         if update.message.from_user.id != self.context.initiator_id:
             return
@@ -32,5 +32,5 @@ class SelectGunner(BaseState):
         selected_gunner_message = f'{update.message.from_user.name} Выбрал в качестве наводчика {gunner_name}! Для того, чтобы выстрелить наводчик должен ответить на любое сообщение цели фразой "Огонь!"'
         context.bot.send_message(chat_id=update.effective_chat.id, text=selected_gunner_message,
                                  reply_to_message_id=update.message.message_id)
-        self.fsm.transition(ReadyToFireTransition, FireCtx(
+        self.fsm.transition(FIRE, FireCtx(
             gunner_name, update.message.reply_to_message.from_user.id))

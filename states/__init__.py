@@ -1,10 +1,10 @@
 import logging
 
-from transitions import TransitionDef, StartTransition, WaitCommandTransition, LoadWeaponTransition, \
-    SelectGunnerTransition, ReadyToFireTransition
+from transitions import TransitionDef, START, WAIT_COMMAND, LOAD_WEAPON, \
+    SELECT_GUNNER, FIRE
 
 from states.load_weapon import LoadWeapon
-from states.ready_to_fire import ReadyToFire
+from states.fire import Fire
 from states.select_gunner import SelectGunner
 from states.start import Start
 from states.wait_command import WaitCommand
@@ -12,11 +12,11 @@ from states.wait_command import WaitCommand
 
 class FSM:
     transitions = {
-        StartTransition: TransitionDef((Start,), Start),
-        WaitCommandTransition: TransitionDef((Start, ReadyToFire, LoadWeapon, SelectGunner), WaitCommand),
-        LoadWeaponTransition: TransitionDef((WaitCommand,), LoadWeapon),
-        SelectGunnerTransition: TransitionDef((LoadWeapon,), SelectGunner),
-        ReadyToFireTransition: TransitionDef((SelectGunner,), ReadyToFire),
+        START: TransitionDef((Start,), Start),
+        WAIT_COMMAND: TransitionDef((Start, Fire, LoadWeapon, SelectGunner), WaitCommand),
+        LOAD_WEAPON: TransitionDef((WaitCommand,), LoadWeapon),
+        SELECT_GUNNER: TransitionDef((LoadWeapon,), SelectGunner),
+        FIRE: TransitionDef((SelectGunner,), Fire),
     }
 
     def __init__(self, init_state):

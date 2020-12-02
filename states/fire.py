@@ -6,16 +6,17 @@ from telegram.ext.callbackcontext import CallbackContext
 from telegram.update import Update
 
 from states.base_state import BaseState
-from transitions import WaitCommandTransition
+from transitions import WAIT_COMMAND
 
 
-class ReadyToFire(BaseState):
+class Fire(BaseState):
     def __init__(self, fsm, context):
         super().__init__(fsm, context)
         self.started_at = datetime.datetime.now().timestamp()
         self.timeout = int(getenv('SELECT_VICTIM_TIMEOUT'))
 
-    def get_random_phrase(self, victim_name, custom_message=None):
+    def get_random_phrase(self, victim_name, victim_id, custom_message=None):
+        victim_name = victim_name if victim_name.startswith('@') else f'[{victim_name}](tg://user?id={victim_id})'
         phrases = (
             '{victim_name}, проследуйте пожалуйста нахуй ☺️',
             'Со звуком "Птиууу!" {victim_name} удалился в сторону хуя 🙈',
@@ -31,8 +32,8 @@ class ReadyToFire(BaseState):
         current_date = datetime.datetime.now().timestamp()
         if current_date - self.started_at >= self.timeout:
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text=self.get_random_phrase(self.context.gunner_name, '{victim_name} пошел нахуй...'))
-            self.fsm.transition(WaitCommandTransition)
+                                 text=self.get_random_phrase(self.context.gunner_name, self.context.gunner_id, '{victim_name} пошел нахуй...'))
+            self.fsm.transition(WAIT_COMMAND)
             return
 
         if update.message.from_user.id != self.context.gunner_id:
@@ -47,7 +48,9 @@ class ReadyToFire(BaseState):
             return
 
         victim_name = update.message.reply_to_message.from_user.name
+        victim_id = update.message.reply_to_message.from_user.id
         context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text=self.get_random_phrase(victim_name))
+                                 text=self.get_random_phrase(victim_name, victim_id),
+                                 parse_mode='markdown')
 
-        self.fsm.transition(WaitCommandTransition)
+        self.fsm.transition(WAIT_COMMAND)
