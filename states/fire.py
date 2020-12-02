@@ -32,7 +32,8 @@ class Fire(BaseState):
         current_date = datetime.datetime.now().timestamp()
         if current_date - self.started_at >= self.timeout:
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text=self.get_random_phrase(self.context.gunner_name, self.context.gunner_id, '{victim_name} пошел нахуй...'))
+                                 text=self.get_random_phrase(self.context.gunner_name, self.context.gunner_id, '{victim_name} пошел нахуй...'),
+                                 parse_mode='markdown')
             self.fsm.transition(WAIT_COMMAND)
             return
 
